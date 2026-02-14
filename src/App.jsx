@@ -35,7 +35,6 @@ function getTodayDateStr() {
   return now.toISOString().split('T')[0]
 }
 
-// -- 本地存储工具 --
 const STATS_STORAGE_KEY = 'kms-focus-stats-v1'
 const TASKS_STORAGE_KEY = 'kms-todo-list-v1'
 const ACTIVE_TASK_KEY = 'kms-todo-active-id-v1'
@@ -99,19 +98,11 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(MODES.focus.duration)
   const [isActive, setIsActive] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
-
-  // 新增移动端羁绊面板显示状态
   const [isMobileTaskOpen, setIsMobileTaskOpen] = useState(false)
-
-  // ====== 灭鬼记录 (Stats) state ======
   const [stats, setStats] = useState(() => loadStats())
-
-  // ====== ToDo 羁绊 state ======
   const [tasks, setTasks] = useState(() => loadTasks())
   const [activeTaskId, setActiveTaskId] = useState(() => loadActiveTaskId())
   const [taskInput, setTaskInput] = useState('')
-
-  // == 编辑状态
   const [editingTaskId, setEditingTaskId] = useState('')
   const [editingTaskText, setEditingTaskText] = useState('')
   const editingInputRef = useRef(null)
@@ -124,21 +115,15 @@ export default function App() {
   }, [editingTaskId])
 
   const currentDuration = MODES[mode].duration
-
-  // --- Audio refs ---
   const drawAudioRef = useRef(null)
   const endAudioRef = useRef(null)
   const rainAudioRef = useRef(null)
-
-  // 保存前一帧 data
   const prevIsActive = useRef(isActive)
   const prevMode = useRef(mode)
   const prevTimeLeftAudio = useRef(timeLeft)
   const prevTimeLeftStats = useRef(timeLeft)
 
-  // =======================
-  // ToDo 羁绊逻辑
-  // =======================
+  // == 业务逻辑同原实现（省略注释重新排列） ==
   function handleAddTask(e) {
     e.preventDefault()
     const text = taskInput.trim()
@@ -150,7 +135,6 @@ export default function App() {
     saveTasks(newTasks)
     setTaskInput('')
   }
-
   function toggleTaskCompleted(id) {
     const newTasks = tasks.map(task =>
       task.id === id ? { ...task, completed: !task.completed } : task
@@ -162,13 +146,11 @@ export default function App() {
       saveActiveTaskId('')
     }
   }
-
   function handleSetActiveTask(id) {
     if (activeTaskId === id) return
     setActiveTaskId(id)
     saveActiveTaskId(id)
   }
-
   function handleDeleteTask(id) {
     setTasks(prevTasks => {
       const next = prevTasks.filter(task => task.id !== id)
@@ -184,7 +166,6 @@ export default function App() {
       return next
     })
   }
-
   function handleClearCompleted() {
     setTasks(prevTasks => {
       const next = prevTasks.filter(task => !task.completed)
@@ -196,18 +177,15 @@ export default function App() {
       return next
     })
   }
-
   function handleStartEditTask(id, text) {
     if (editingTaskId !== id) {
       setEditingTaskId(id)
       setEditingTaskText(text)
     }
   }
-
   function handleEditTaskChange(e) {
     setEditingTaskText(e.target.value)
   }
-
   function handleEditTaskSubmit(e, id) {
     if (e) e.preventDefault()
     const value = editingTaskText.trim()
@@ -227,12 +205,10 @@ export default function App() {
     setEditingTaskId('')
     setEditingTaskText('')
   }
-
   function handleEditTaskBlur(id) {
     if (editingTaskId !== id) return
     handleEditTaskSubmit(null, id)
   }
-
   function handleEditTaskKeyDown(e, id) {
     if (e.key === 'Enter') {
       handleEditTaskSubmit(e, id)
@@ -250,7 +226,6 @@ export default function App() {
       saveActiveTaskId('')
     }
   }, [tasks, activeTaskId])
-
   useEffect(() => {
     saveTasks(tasks)
   }, [tasks])
@@ -258,35 +233,25 @@ export default function App() {
     saveActiveTaskId(activeTaskId)
   }, [activeTaskId])
 
-  // =======================
-  // 灭鬼记录 stats 逻辑
-  // =======================
-
   useEffect(() => {
     if (stats.date !== getTodayDateStr()) {
       setStats({ date: getTodayDateStr(), count: 0 })
     }
   }, [stats.date])
-
   useEffect(() => {
     saveStats(stats)
   }, [stats])
 
-  // =======================
-  // 模式切换
-  // =======================
   const switchMode = (newMode) => {
     setMode(newMode)
     setTimeLeft(MODES[newMode].duration)
     setIsActive(false)
   }
-
   const startPause = () => setIsActive((prev) => !prev)
   const reset = () => {
     setTimeLeft(currentDuration)
     setIsActive(false)
   }
-
   useEffect(() => {
     if (!isActive) return
     if (timeLeft <= 0) {
@@ -300,9 +265,7 @@ export default function App() {
 
   const isFocus = mode === 'focus'
 
-  // ------------------------------
   // 音频主控：音效播放与白噪音状态管理
-  // ------------------------------
   useEffect(() => {
     if (
       isFocus &&
@@ -332,6 +295,7 @@ export default function App() {
     prevTimeLeftAudio.current = timeLeft
   }, [timeLeft, isMuted])
 
+  // 【BugFix 1】：rainAudioRef 白噪音暂停直接 pause，移除 fadeOut
   useEffect(() => {
     const shouldPlay = isFocus && isActive && !isMuted
     const shouldPause =
@@ -347,21 +311,10 @@ export default function App() {
       audio.loop = true
       audio.play().catch(() => { })
     } else if (shouldPause && !audio.paused) {
-      const FADE_DURATION = 400
-      const fadeOut = () => {
-        let step = audio.volume / (FADE_DURATION / 40)
-        const fade = () => {
-          if (audio.volume > 0.04) {
-            audio.volume = Math.max(0, audio.volume - step)
-            setTimeout(fade, 40)
-          } else {
-            audio.pause()
-            audio.volume = 0.22
-          }
-        }
-        fade()
-      }
-      fadeOut()
+      // iOS Safari 禁止渐隐/volume 递减, 直接 pause
+      audio.pause()
+      // volume 仍设初值，确保下次可正常播放
+      audio.volume = 0.22
     }
     prevMode.current = mode
   }, [isFocus, isActive, mode, isMuted])
@@ -442,63 +395,7 @@ export default function App() {
     }
     : {}
 
-  // ========================
-  // UI: 右上角静音微标 (无更动)
-  const MuteButton = () => (
-    <button
-      type="button"
-      aria-label={isMuted ? '取消静音' : '静音'}
-      onClick={() => setIsMuted((v) => !v)}
-      className={`
-        absolute top-7 right-7 z-20
-        w-12 h-12 flex items-center justify-center
-        rounded-full
-        bg-white/10 hover:bg-white/20
-        backdrop-blur-md
-        shadow-[0_2px_10px_0_rgba(18,18,18,0.09)]
-        transition-all
-        border border-white/10
-        text-ds-accent
-        hover:text-white
-        cursor-pointer
-      `}
-      style={{
-        boxShadow: '0 2px 14px 0 rgba(139,0,0,0.13)',
-        backdropFilter: 'blur(9px)'
-      }}
-    >
-      {isMuted ? <VolumeX className="w-7 h-7" /> : <Volume2 className="w-7 h-7" />}
-    </button>
-  )
-
-  // ========================
-  // UI: 右上角 Stats 微标 (无更动)
-  const StatsBadge = () => (
-    <div
-      className={`
-        absolute top-7 right-[94px] z-20
-        flex items-center gap-1.5 px-4 py-1.5
-        rounded-full bg-white/8 backdrop-blur-[7px] border border-white/8
-        text-xs text-white/80 font-semibold
-        select-none
-        shadow-[0_2px_12px_0_rgba(139,0,0,0.10)]
-        hover:bg-white/16
-        transition
-      `}
-      style={{
-        minWidth: 85,
-        letterSpacing: 0.5,
-        userSelect: 'none'
-      }}
-    >
-      <Star className="w-4 h-4 text-ds-gold drop-shadow-[0_0_5px_#ffef91a5]" />
-      今日全集中:
-      <span className="text-ds-red font-bold ml-1">{stats.count}</span>
-      <span className="ml-0.5">次</span>
-    </div>
-  )
-
-  // -- 火焰印记小组件
+  // 火焰印记，仅表现组件（允许作为静态小函数，不涉及输入或复杂交互）
   function FocusFlame({ count }) {
     if (!count || count < 1) return null
     return (
@@ -535,237 +432,10 @@ export default function App() {
     )
   }
 
-  // —— 羁绊任务面板主体复用渲染函数
-  function TodoPanel({
-    showClose = false,
-    onClose = () => { }
-  }) {
-    return (
-      <div className="
-        bg-white/5 backdrop-blur-md border border-white/10
-        rounded-2xl p-5 shadow-[0_6px_40px_0_rgba(18,18,18,0.13)]
-        flex flex-col gap-2 relative
-        w-full max-w-md
-        ">
-        {showClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white"
-            aria-label="关闭面板"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        )}
-        <form className="flex gap-2 mb-3" onSubmit={handleAddTask} autoComplete="off">
-          <input
-            type="text"
-            placeholder="输入你的羁绊任务"
-            value={taskInput}
-            onChange={e => setTaskInput(e.target.value)}
-            className="
-              flex-1 bg-neutral-900/80 text-white/90 px-3 py-2 rounded-lg
-              border border-white/10 shadow-inner outline-none transition
-              focus:border-ds-red
-              placeholder:text-white/50
-            "
-            autoFocus={false}
-            maxLength={50}
-          />
-          <button
-            type="submit"
-            className="
-              bg-ds-red text-white rounded-lg px-3 py-2 flex items-center
-              hover:bg-[#b32123] transition font-bold shadow
-              focus:outline-none focus:ring-1 focus:ring-ds-red
-            "
-            title="添加任务"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-        </form>
-        <div className="flex flex-col gap-1 max-h-64 overflow-y-auto relative">
-          {tasks.length === 0 && (
-            <div className="text-center text-white/40 py-7 select-none text-sm">暂无任务</div>
-          )}
-          {tasks.map(task => {
-            const isActive = activeTaskId === task.id
-            const isEditing = editingTaskId === task.id
-            const isCompleted = task.completed
-            return (
-              <div
-                key={task.id}
-                className={`
-                  group flex items-center gap-3 px-2 py-2 rounded-lg
-                  transition relative
-                  ${isActive ? 'border-2 border-ds-red bg-ds-red/10 shadow-[0_4px_16px_#8b000024]' :
-                    task.completed ? 'opacity-60' : 'hover:bg-white/10'}
-                  ${!task.completed ? 'cursor-pointer' : 'cursor-default'}
-                `}
-                onClick={() => (!task.completed && !isEditing ? handleSetActiveTask(task.id) : undefined)}
-                tabIndex={0}
-                style={{
-                  outline: isActive ? '2px solid #8b0000' : 'none',
-                }}
-              >
-                {/* 完成勾选 */}
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    toggleTaskCompleted(task.id)
-                  }}
-                  className={`
-                    flex items-center justify-center w-6 h-6 rounded-full
-                    border-2
-                    ${task.completed ? 'border-ds-red bg-ds-red/80 text-white' : 'border-white/20 bg-black/40 text-white/60'}
-                    transition
-                  `}
-                  title={task.completed ? '已完成' : '标记为完成'}
-                  tabIndex={-1}
-                >
-                  {task.completed
-                    ? <Check className="w-4 h-4" />
-                    : <span className="block w-3 h-3 rounded-full border border-white/15"></span>}
-                </button>
-                {/* 任务文本或编辑框/火焰计数 */}
-                <div className="flex-1 flex items-center min-w-0">
-                  {isEditing ? (
-                    <form
-                      onSubmit={e => handleEditTaskSubmit(e, task.id)}
-                      className="w-full"
-                      style={{ margin: 0 }}
-                    >
-                      <input
-                        ref={editingInputRef}
-                        type="text"
-                        className={`
-                          w-full px-2 py-1 rounded-md bg-black/40 border border-white/20 text-white
-                          focus:border-ds-red outline-none shadow-inner text-base font-medium
-                          transition
-                          placeholder:text-white/50
-                        `}
-                        style={{
-                          background: 'rgba(0,0,0,0.24)',
-                          fontWeight: 500,
-                        }}
-                        value={editingTaskText}
-                        maxLength={50}
-                        onChange={handleEditTaskChange}
-                        onBlur={() => handleEditTaskBlur(task.id)}
-                        onKeyDown={e => handleEditTaskKeyDown(e, task.id)}
-                      />
-                    </form>
-                  ) : (
-                    <span
-                      className={`
-                        block flex-1 font-medium text-base transition-colors break-all select-text
-                        ${task.completed ? 'line-through text-white/45' :
-                          isActive ? 'text-ds-red font-bold' : 'text-white/80 group-hover:text-ds-red'}
-                        truncate
-                      `}
-                    >
-                      {task.text}
-                    </span>
-                  )}
-                  {/* 火焰印记 */}
-                  <FocusFlame count={task.focusCount} />
-                  {isActive && !task.completed && !isEditing && (
-                    <span className="ml-1 text-xs text-white/80 px-2 py-0.5 rounded bg-ds-red/60 font-semibold tracking-wide">
-                      进行中
-                    </span>
-                  )}
-                </div>
-                {/* 编辑与删除: 默认低透明度，hover完全显示 */}
-                {!task.completed && !isEditing && (
-                  <div className="flex items-center gap-1 ml-1">
-                    <button
-                      type="button"
-                      aria-label="编辑"
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleStartEditTask(task.id, task.text)
-                      }}
-                      className={`
-                        p-1 rounded hover:bg-white/15 transition
-                        opacity-30 group-hover:opacity-100 focus:opacity-100
-                      `}
-                      tabIndex={-1}
-                      title="编辑任务"
-                    >
-                      <Edit2 className="w-4 h-4 text-white" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="删除"
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleDeleteTask(task.id)
-                      }}
-                      className={`
-                        p-1 rounded hover:bg-white/15 transition
-                        opacity-30 group-hover:opacity-100 focus:opacity-100
-                      `}
-                      tabIndex={-1}
-                      title="删除任务"
-                    >
-                      <Trash2 className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-                )}
-                {/* 已完成任务 hover 时，仅展示删除按钮 */}
-                {task.completed && !isEditing && (
-                  <div className="flex items-center gap-1 ml-1">
-                    <button
-                      type="button"
-                      aria-label="删除"
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleDeleteTask(task.id)
-                      }}
-                      className={`
-                        p-1 rounded hover:bg-white/15 transition
-                        opacity-0 group-hover:opacity-90 focus:opacity-100
-                      `}
-                      tabIndex={-1}
-                      title="删除任务"
-                      style={{ pointerEvents: 'auto' }}
-                    >
-                      <Trash2 className="w-4 h-4 text-white/70" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        {tasks.some(t => t.completed) && (
-          <div className="flex justify-center mt-2">
-            <button
-              type="button"
-              onClick={handleClearCompleted}
-              className={`
-                flex items-center gap-1 px-2 py-1 rounded
-                text-xs text-white/40
-                hover:text-white/80 hover:bg-white/8
-                transition focus:outline-none
-              `}
-              style={{ fontWeight: 500, letterSpacing: 0.05, background: 'none', minHeight: 0, boxShadow: 'none' }}
-              tabIndex={0}
-              title="一键清除所有已完成任务"
-            >
-              <Trash2 className="w-3.5 h-3.5 -ml-0.5 mr-1" />
-              一键清除已完成
-            </button>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   // =======================
   // 主渲染
   // =======================
+  // ======================= UI 元素 静态函数以外均写到这里 =======================
   return (
     <Fragment>
       {/* 音效相关的 <audio> 元素 (隐藏) */}
@@ -773,17 +443,65 @@ export default function App() {
       <audio ref={endAudioRef} src="/sounds/end.mp3" preload="auto" tabIndex={-1} />
       <audio ref={rainAudioRef} src="/sounds/rain.mp3" preload="auto" tabIndex={-1} />
 
-      {/* 灭鬼记录微标（屏幕右上） */}
-      <StatsBadge />
-      {/* 静音切换按钮 */}
-      <MuteButton />
-      {/* 移动端左上角羁绊呼出按钮，仅lg以下显示 */}
+      {/* 右上角——灭鬼记录微标 & 静音按钮组 */}
+      <div>
+        {/* StatsBadge */}
+        <div
+          className={`
+            absolute top-6 landscape:top-2 right-[94px] z-20
+            flex items-center gap-1.5 px-4 py-1.5
+            rounded-full bg-white/8 backdrop-blur-[7px] border border-white/8
+            text-xs text-white/80 font-semibold
+            select-none
+            shadow-[0_2px_12px_0_rgba(139,0,0,0.10)]
+            hover:bg-white/16
+            transition
+          `}
+          style={{
+            minWidth: 85,
+            letterSpacing: 0.5,
+            userSelect: 'none'
+          }}
+        >
+          <Star className="w-4 h-4 text-ds-gold drop-shadow-[0_0_5px_#ffef91a5]" />
+          今日全集中:
+          <span className="text-ds-red font-bold ml-1">{stats.count}</span>
+          <span className="ml-0.5">次</span>
+        </div>
+        {/* MuteButton */}
+        <button
+          type="button"
+          aria-label={isMuted ? '取消静音' : '静音'}
+          onClick={() => setIsMuted((v) => !v)}
+          className={`
+            absolute top-6 landscape:top-2 right-7 z-20
+            w-12 h-12 flex items-center justify-center
+            rounded-full
+            bg-white/10 hover:bg-white/20
+            backdrop-blur-md
+            shadow-[0_2px_10px_0_rgba(18,18,18,0.09)]
+            transition-all
+            border border-white/10
+            text-ds-accent
+            hover:text-white
+            cursor-pointer
+          `}
+          style={{
+            boxShadow: '0 2px 14px 0 rgba(139,0,0,0.13)',
+            backdropFilter: 'blur(9px)'
+          }}
+        >
+          {isMuted ? <VolumeX className="w-7 h-7" /> : <Volume2 className="w-7 h-7" />}
+        </button>
+      </div>
+
+      {/* 左上角：羁绊任务呼出 */}
       <button
         type="button"
         aria-label="打开羁绊任务"
         onClick={() => setIsMobileTaskOpen(true)}
         className={`
-          absolute top-7 left-7 z-20 w-12 h-12 flex items-center justify-center
+          absolute top-6 landscape:top-2 left-7 z-20 w-12 h-12 flex items-center justify-center
           rounded-full bg-white/10 hover:bg-white/20
           backdrop-blur-md shadow-[0_2px_10px_0_rgba(18,18,18,0.09)]
           border border-white/10 text-ds-accent lg:hidden
@@ -792,8 +510,7 @@ export default function App() {
         <ListTodo className="w-6 h-6" />
       </button>
 
-      {/* 羁绊ToDo侧栏（响应式） */}
-      {/* pc端：lg 及以上 固定侧边栏 */}
+      {/* PC侧栏 */}
       <AnimatePresence>
         <motion.div
           initial={{ opacity: 0, x: -32 }}
@@ -805,24 +522,447 @@ export default function App() {
           `}
           style={{ pointerEvents: 'auto' }}
         >
-          <TodoPanel />
+          {/* ====== 羁绊任务面板（非组件写法，结构挂载稳定） ====== */}
+          <div className="
+            bg-white/5 backdrop-blur-md border border-white/10
+            rounded-2xl p-5 shadow-[0_6px_40px_0_rgba(18,18,18,0.13)]
+            flex flex-col gap-2 relative
+            w-full max-w-md
+          ">
+            <form className="flex gap-2 mb-3" onSubmit={handleAddTask} autoComplete="off">
+              <input
+                type="text"
+                placeholder="输入你的羁绊任务"
+                value={taskInput}
+                onChange={e => setTaskInput(e.target.value)}
+                className="
+                  flex-1 bg-neutral-900/80 text-white/90 px-3 py-2 rounded-lg
+                  border border-white/10 shadow-inner outline-none transition
+                  focus:border-ds-red
+                  placeholder:text-white/50
+                "
+                autoFocus={false}
+                maxLength={50}
+              />
+              <button
+                type="submit"
+                className="
+                  bg-ds-red text-white rounded-lg px-3 py-2 flex items-center
+                  hover:bg-[#b32123] transition font-bold shadow
+                  focus:outline-none focus:ring-1 focus:ring-ds-red
+                "
+                title="添加任务"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </form>
+            <div className="flex flex-col gap-1 max-h-64 overflow-y-auto relative">
+              {tasks.length === 0 && (
+                <div className="text-center text-white/40 py-7 select-none text-sm">暂无任务</div>
+              )}
+              {tasks.map(task => {
+                const isActiveTask = activeTaskId === task.id
+                const isEditing = editingTaskId === task.id
+                return (
+                  <div
+                    key={task.id}
+                    className={`
+                      group flex items-center gap-3 px-2 py-2 rounded-lg
+                      transition relative
+                      ${isActiveTask ? 'border-2 border-ds-red bg-ds-red/10 shadow-[0_4px_16px_#8b000024]' :
+                        task.completed ? 'opacity-60' : 'hover:bg-white/10'}
+                      ${!task.completed ? 'cursor-pointer' : 'cursor-default'}
+                    `}
+                    onClick={() => (!task.completed && !isEditing ? handleSetActiveTask(task.id) : undefined)}
+                    tabIndex={0}
+                    style={{
+                      outline: isActiveTask ? '2px solid #8b0000' : 'none',
+                    }}
+                  >
+                    {/* 完成勾选 */}
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        toggleTaskCompleted(task.id)
+                      }}
+                      className={`
+                        flex items-center justify-center w-6 h-6 rounded-full
+                        border-2
+                        ${task.completed ? 'border-ds-red bg-ds-red/80 text-white' : 'border-white/20 bg-black/40 text-white/60'}
+                        transition
+                      `}
+                      title={task.completed ? '已完成' : '标记为完成'}
+                      tabIndex={-1}
+                    >
+                      {task.completed
+                        ? <Check className="w-4 h-4" />
+                        : <span className="block w-3 h-3 rounded-full border border-white/15"></span>}
+                    </button>
+                    {/* 任务文本或编辑框/火焰计数 */}
+                    <div className="flex-1 flex items-center min-w-0">
+                      {isEditing ? (
+                        <form
+                          onSubmit={e => handleEditTaskSubmit(e, task.id)}
+                          className="w-full"
+                          style={{ margin: 0 }}
+                        >
+                          <input
+                            ref={editingInputRef}
+                            type="text"
+                            className={`
+                              w-full px-2 py-1 rounded-md bg-black/40 border border-white/20 text-white
+                              focus:border-ds-red outline-none shadow-inner text-base font-medium
+                              transition
+                              placeholder:text-white/50
+                            `}
+                            style={{
+                              background: 'rgba(0,0,0,0.24)',
+                              fontWeight: 500,
+                            }}
+                            value={editingTaskText}
+                            maxLength={50}
+                            onChange={handleEditTaskChange}
+                            onBlur={() => handleEditTaskBlur(task.id)}
+                            onKeyDown={e => handleEditTaskKeyDown(e, task.id)}
+                          />
+                        </form>
+                      ) : (
+                        <span
+                          className={`
+                            block flex-1 font-medium text-base transition-colors break-all select-text
+                            ${task.completed ? 'line-through text-white/45' :
+                              isActiveTask ? 'text-ds-red font-bold' : 'text-white/80 group-hover:text-ds-red'}
+                            truncate
+                          `}
+                        >
+                          {task.text}
+                        </span>
+                      )}
+                      {/* 火焰印记 */}
+                      <FocusFlame count={task.focusCount} />
+                      {isActiveTask && !task.completed && !isEditing && (
+                        <span className="ml-1 text-xs text-white/80 px-2 py-0.5 rounded bg-ds-red/60 font-semibold tracking-wide">
+                          进行中
+                        </span>
+                      )}
+                    </div>
+                    {/* 编辑与删除 */}
+                    {!task.completed && !isEditing && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button
+                          type="button"
+                          aria-label="编辑"
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleStartEditTask(task.id, task.text)
+                          }}
+                          className={`
+                            p-1 rounded hover:bg-white/15 transition
+                            opacity-30 group-hover:opacity-100 focus:opacity-100
+                          `}
+                          tabIndex={-1}
+                          title="编辑任务"
+                        >
+                          <Edit2 className="w-4 h-4 text-white" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="删除"
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleDeleteTask(task.id)
+                          }}
+                          className={`
+                            p-1 rounded hover:bg-white/15 transition
+                            opacity-30 group-hover:opacity-100 focus:opacity-100
+                          `}
+                          tabIndex={-1}
+                          title="删除任务"
+                        >
+                          <Trash2 className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    )}
+                    {/* 已完成 hover 删除 */}
+                    {task.completed && !isEditing && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button
+                          type="button"
+                          aria-label="删除"
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleDeleteTask(task.id)
+                          }}
+                          className={`
+                            p-1 rounded hover:bg-white/15 transition
+                            opacity-0 group-hover:opacity-90 focus:opacity-100
+                          `}
+                          tabIndex={-1}
+                          title="删除任务"
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <Trash2 className="w-4 h-4 text-white/70" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {tasks.some(t => t.completed) && (
+              <div className="flex justify-center mt-2">
+                <button
+                  type="button"
+                  onClick={handleClearCompleted}
+                  className={`
+                    flex items-center gap-1 px-2 py-1 rounded
+                    text-xs text-white/40
+                    hover:text-white/80 hover:bg-white/8
+                    transition focus:outline-none
+                  `}
+                  style={{ fontWeight: 500, letterSpacing: 0.05, background: 'none', minHeight: 0, boxShadow: 'none' }}
+                  tabIndex={0}
+                  title="一键清除所有已完成任务"
+                >
+                  <Trash2 className="w-3.5 h-3.5 -ml-0.5 mr-1" />
+                  一键清除已完成
+                </button>
+              </div>
+            )}
+          </div>
         </motion.div>
       </AnimatePresence>
 
-      {/* 移动端：modal 形式弹出 */}
+      {/* 移动端modal，保持结构稳定，不产生remount，防止输入断触 */}
       <AnimatePresence>
-        {isMobileTaskOpen &&
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 lg:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+        <motion.div
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 lg:hidden ${isMobileTaskOpen ? '' : 'pointer-events-none'}`}
+          initial={false}
+          animate={{ opacity: isMobileTaskOpen ? 1 : 0 }}
+          style={{ display: isMobileTaskOpen ? undefined : 'none' }}
+        >
+          {/* 关闭按钮 */}
+          <button
+            type="button"
+            onClick={() => setIsMobileTaskOpen(false)}
+            className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white"
+            aria-label="关闭面板"
           >
-            <TodoPanel showClose onClose={() => setIsMobileTaskOpen(false)} />
-          </motion.div>
-        }
+            <X className="w-6 h-6" />
+          </button>
+          <div className="
+            bg-white/5 backdrop-blur-md border border-white/10
+            rounded-2xl p-5 shadow-[0_6px_40px_0_rgba(18,18,18,0.13)]
+            flex flex-col gap-2 relative
+            w-full max-w-md
+          ">
+            <form className="flex gap-2 mb-3" onSubmit={handleAddTask} autoComplete="off">
+              <input
+                type="text"
+                placeholder="输入你的羁绊任务"
+                value={taskInput}
+                onChange={e => setTaskInput(e.target.value)}
+                className="
+                  flex-1 bg-neutral-900/80 text-white/90 px-3 py-2 rounded-lg
+                  border border-white/10 shadow-inner outline-none transition
+                  focus:border-ds-red
+                  placeholder:text-white/50
+                "
+                autoFocus={false}
+                maxLength={50}
+              />
+              <button
+                type="submit"
+                className="
+                  bg-ds-red text-white rounded-lg px-3 py-2 flex items-center
+                  hover:bg-[#b32123] transition font-bold shadow
+                  focus:outline-none focus:ring-1 focus:ring-ds-red
+                "
+                title="添加任务"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </form>
+            <div className="flex flex-col gap-1 max-h-64 overflow-y-auto relative">
+              {tasks.length === 0 && (
+                <div className="text-center text-white/40 py-7 select-none text-sm">暂无任务</div>
+              )}
+              {tasks.map(task => {
+                const isActiveTask = activeTaskId === task.id
+                const isEditing = editingTaskId === task.id
+                return (
+                  <div
+                    key={task.id}
+                    className={`
+                      group flex items-center gap-3 px-2 py-2 rounded-lg
+                      transition relative
+                      ${isActiveTask ? 'border-2 border-ds-red bg-ds-red/10 shadow-[0_4px_16px_#8b000024]' :
+                        task.completed ? 'opacity-60' : 'hover:bg-white/10'}
+                      ${!task.completed ? 'cursor-pointer' : 'cursor-default'}
+                    `}
+                    onClick={() => (!task.completed && !isEditing ? handleSetActiveTask(task.id) : undefined)}
+                    tabIndex={0}
+                    style={{
+                      outline: isActiveTask ? '2px solid #8b0000' : 'none',
+                    }}
+                  >
+                    {/* 完成勾选 */}
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        toggleTaskCompleted(task.id)
+                      }}
+                      className={`
+                        flex items-center justify-center w-6 h-6 rounded-full
+                        border-2
+                        ${task.completed ? 'border-ds-red bg-ds-red/80 text-white' : 'border-white/20 bg-black/40 text-white/60'}
+                        transition
+                      `}
+                      title={task.completed ? '已完成' : '标记为完成'}
+                      tabIndex={-1}
+                    >
+                      {task.completed
+                        ? <Check className="w-4 h-4" />
+                        : <span className="block w-3 h-3 rounded-full border border-white/15"></span>}
+                    </button>
+                    {/* 任务文本或编辑框/火焰计数 */}
+                    <div className="flex-1 flex items-center min-w-0">
+                      {isEditing ? (
+                        <form
+                          onSubmit={e => handleEditTaskSubmit(e, task.id)}
+                          className="w-full"
+                          style={{ margin: 0 }}
+                        >
+                          <input
+                            ref={editingInputRef}
+                            type="text"
+                            className={`
+                              w-full px-2 py-1 rounded-md bg-black/40 border border-white/20 text-white
+                              focus:border-ds-red outline-none shadow-inner text-base font-medium
+                              transition
+                              placeholder:text-white/50
+                            `}
+                            style={{
+                              background: 'rgba(0,0,0,0.24)',
+                              fontWeight: 500,
+                            }}
+                            value={editingTaskText}
+                            maxLength={50}
+                            onChange={handleEditTaskChange}
+                            onBlur={() => handleEditTaskBlur(task.id)}
+                            onKeyDown={e => handleEditTaskKeyDown(e, task.id)}
+                          />
+                        </form>
+                      ) : (
+                        <span
+                          className={`
+                            block flex-1 font-medium text-base transition-colors break-all select-text
+                            ${task.completed ? 'line-through text-white/45' :
+                              isActiveTask ? 'text-ds-red font-bold' : 'text-white/80 group-hover:text-ds-red'}
+                            truncate
+                          `}
+                        >
+                          {task.text}
+                        </span>
+                      )}
+                      {/* 火焰印记 */}
+                      <FocusFlame count={task.focusCount} />
+                      {isActiveTask && !task.completed && !isEditing && (
+                        <span className="ml-1 text-xs text-white/80 px-2 py-0.5 rounded bg-ds-red/60 font-semibold tracking-wide">
+                          进行中
+                        </span>
+                      )}
+                    </div>
+                    {/* 编辑与删除 */}
+                    {!task.completed && !isEditing && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button
+                          type="button"
+                          aria-label="编辑"
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleStartEditTask(task.id, task.text)
+                          }}
+                          className={`
+                            p-1 rounded hover:bg-white/15 transition
+                            opacity-30 group-hover:opacity-100 focus:opacity-100
+                          `}
+                          tabIndex={-1}
+                          title="编辑任务"
+                        >
+                          <Edit2 className="w-4 h-4 text-white" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="删除"
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleDeleteTask(task.id)
+                          }}
+                          className={`
+                            p-1 rounded hover:bg-white/15 transition
+                            opacity-30 group-hover:opacity-100 focus:opacity-100
+                          `}
+                          tabIndex={-1}
+                          title="删除任务"
+                        >
+                          <Trash2 className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    )}
+                    {/* 已完成 hover 删除 */}
+                    {task.completed && !isEditing && (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button
+                          type="button"
+                          aria-label="删除"
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleDeleteTask(task.id)
+                          }}
+                          className={`
+                            p-1 rounded hover:bg-white/15 transition
+                            opacity-0 group-hover:opacity-90 focus:opacity-100
+                          `}
+                          tabIndex={-1}
+                          title="删除任务"
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <Trash2 className="w-4 h-4 text-white/70" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {tasks.some(t => t.completed) && (
+              <div className="flex justify-center mt-2">
+                <button
+                  type="button"
+                  onClick={handleClearCompleted}
+                  className={`
+                    flex items-center gap-1 px-2 py-1 rounded
+                    text-xs text-white/40
+                    hover:text-white/80 hover:bg-white/8
+                    transition focus:outline-none
+                  `}
+                  style={{ fontWeight: 500, letterSpacing: 0.05, background: 'none', minHeight: 0, boxShadow: 'none' }}
+                  tabIndex={0}
+                  title="一键清除所有已完成任务"
+                >
+                  <Trash2 className="w-3.5 h-3.5 -ml-0.5 mr-1" />
+                  一键清除已完成
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
       </AnimatePresence>
 
+      {/* 背景与主要计时 UI */}
       <AnimatePresence mode="wait">
         {/* 背景用 motion.div + animate style 渐变 */}
         <motion.div
@@ -837,8 +977,8 @@ export default function App() {
             transition: 'background 0.7s cubic-bezier(0.77, 0, 0.175, 1)'
           }}
         />
-        <main className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-8 gap-14 select-none">
-          {/* 人物立绘插画（屏幕右下角最大化，专属动画和统一排版） */}
+        <main className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-8 landscape:py-2 gap-10 landscape:gap-4 select-none">
+          {/* 人物立绘插画 */}
           <AnimatePresence mode="wait">
             {MODES[mode].image && (
               <motion.img
@@ -869,7 +1009,6 @@ export default function App() {
               />
             )}
           </AnimatePresence>
-
           {/* 模式切换 */}
           <div className="flex gap-3 sm:gap-5 mt-2">
             {Object.entries(MODES).map(([key, { label }]) => {
@@ -917,12 +1056,11 @@ export default function App() {
               )
             })}
           </div>
-
-          {/* 时间数字显示 */}
+          {/* 时间数字显示  */}
           <div className="flex justify-center items-center py-2">
             <motion.span
               className={`
-                text-[20vw] sm:text-[15vw] lg:text-9xl font-extrabold tabular-nums
+                text-[22vw] sm:text-[15vw] landscape:text-[35vh] lg:text-9xl font-extrabold tabular-nums
                 tracking-widest
                 ${isFocus ? 'text-ds-red' : 'text-ds-accent'}
                 drop-shadow-[0_2px_36px_rgba(139,0,0,0.2)]
