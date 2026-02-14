@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 强制全局使用暗黑背景和浅色文字，奠定沉浸感基调 */
+body {
+  background-color: #121212;
+  color: #e5e7eb;
+  margin: 0;
+  padding: 0;
+  /* 禁止移动端双击缩放和文本选中，提升 App 质感 */
+  user-select: none;
+  touch-action: manipulation;
+}
