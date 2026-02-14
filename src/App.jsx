@@ -448,7 +448,7 @@ export default function App() {
         {/* StatsBadge */}
         <div
           className={`
-            absolute top-6 landscape:top-2 right-[94px] z-20
+            absolute top-6 right-[94px] z-20
             flex items-center gap-1.5 px-4 py-1.5
             rounded-full bg-white/8 backdrop-blur-[7px] border border-white/8
             text-xs text-white/80 font-semibold
@@ -474,7 +474,7 @@ export default function App() {
           aria-label={isMuted ? '取消静音' : '静音'}
           onClick={() => setIsMuted((v) => !v)}
           className={`
-            absolute top-6 landscape:top-2 right-7 z-20
+            absolute top-6 right-7 z-20
             w-12 h-12 flex items-center justify-center
             rounded-full
             bg-white/10 hover:bg-white/20
@@ -501,7 +501,7 @@ export default function App() {
         aria-label="打开羁绊任务"
         onClick={() => setIsMobileTaskOpen(true)}
         className={`
-          absolute top-6 landscape:top-2 left-7 z-20 w-12 h-12 flex items-center justify-center
+          absolute top-6 left-7 z-20 w-12 h-12 flex items-center justify-center
           rounded-full bg-white/10 hover:bg-white/20
           backdrop-blur-md shadow-[0_2px_10px_0_rgba(18,18,18,0.09)]
           border border-white/10 text-ds-accent lg:hidden
@@ -977,7 +977,7 @@ export default function App() {
             transition: 'background 0.7s cubic-bezier(0.77, 0, 0.175, 1)'
           }}
         />
-        <main className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-8 landscape:py-2 gap-10 landscape:gap-4 select-none">
+        <main className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-8 gap-10 select-none pb-32">
           {/* 人物立绘插画 */}
           <AnimatePresence mode="wait">
             {MODES[mode].image && (
@@ -1060,7 +1060,7 @@ export default function App() {
           <div className="flex justify-center items-center py-2">
             <motion.span
               className={`
-                text-[22vw] sm:text-[15vw] landscape:text-[35vh] lg:text-9xl font-extrabold tabular-nums
+                text-[22vw] sm:text-[15vw] lg:text-9xl font-extrabold tabular-nums
                 tracking-widest
                 ${isFocus ? 'text-ds-red' : 'text-ds-accent'}
                 drop-shadow-[0_2px_36px_rgba(139,0,0,0.2)]
