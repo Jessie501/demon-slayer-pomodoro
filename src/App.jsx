@@ -978,7 +978,7 @@ export default function App() {
           }}
         />
         {/* 视觉核心重排: 主要内容不再绝对居中, 上提到屏幕18vh处 */}
-        <main className="relative z-10 min-h-screen flex flex-col items-center justify-start px-4 pt-[18vh] lg:pt-0 lg:justify-center gap-10 select-none">
+        <main className="relative z-10 h-[100dvh] flex flex-col items-center pt-[15vh] lg:pt-0 lg:justify-center px-4 gap-8 lg:gap-14 select-none">
           {/* 人物立绘插画 */}
           <AnimatePresence mode="wait">
             {MODES[mode].image && (
@@ -1005,7 +1005,7 @@ export default function App() {
                   scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
                   rotate: { duration: 4, repeat: Infinity, ease: "easeInOut" }
                 }}
-                className="absolute bottom-0 right-[2%] max-h-[52vh] lg:max-h-[65vh] max-w-[85vw] object-contain object-bottom pointer-events-none z-0"
+                className="absolute bottom-0 right-[2%] h-[45vh] lg:h-[65vh] max-w-[90vw] object-contain object-bottom pointer-events-none z-0"
                 alt="character vibe"
               />
             )}
